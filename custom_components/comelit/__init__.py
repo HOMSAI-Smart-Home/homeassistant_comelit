@@ -3,10 +3,25 @@
 import logging
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
-from homeassistant.const import (CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PORT, CONF_SCAN_INTERVAL)
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+)
 from .hub import ComelitHub
 from .vedo import ComelitVedo
-from .const import DOMAIN, HUB_DOMAIN, VEDO_DOMAIN, CONF_MQTT_USER, CONF_MQTT_PASSWORD, CONF_SERIAL, CONF_CLIENT
+from .const import (
+    DOMAIN,
+    HUB_DOMAIN,
+    VEDO_DOMAIN,
+    CONF_MQTT_USER,
+    CONF_MQTT_PASSWORD,
+    CONF_SERIAL,
+    CONF_CLIENT,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -20,7 +35,7 @@ HUB_SCHEMA = vol.Schema(
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Optional(CONF_CLIENT, default="homeassistant"): cv.string,
-        vol.Optional(CONF_SCAN_INTERVAL, default=1): cv.positive_int
+        vol.Optional(CONF_SCAN_INTERVAL, default=1): cv.positive_int,
     }
 )
 
@@ -29,7 +44,7 @@ VEDO_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=80): cv.port,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_SCAN_INTERVAL, default=1): cv.positive_int
+        vol.Optional(CONF_SCAN_INTERVAL, default=1): cv.positive_int,
     }
 )
 
@@ -37,10 +52,10 @@ VEDO_SCHEMA = vol.Schema(
 def setup(hass, config):
     conf = config[DOMAIN]
     hass.data[DOMAIN] = {}
-    hass.data[DOMAIN]['conf'] = conf
+    hass.data[DOMAIN]["conf"] = conf
 
     # Comelit Hub
-    if 'hub' in conf:
+    if "hub" in conf:
         hub_conf = conf["hub"]
         if hub_conf is not None:
             schema = HUB_SCHEMA(hub_conf)
@@ -53,18 +68,28 @@ def setup(hass, config):
             hub_password = schema[CONF_PASSWORD]
             hub_serial = schema[CONF_SERIAL]
             hub_client = schema[CONF_CLIENT]
-            hub = ComelitHub(hub_client, hub_serial, hub_host, mqtt_port, mqtt_user, mqtt_password, hub_user,
-                             hub_password, scan_interval)
-            hass.data[DOMAIN]['hub'] = hub
-            hass.helpers.discovery.load_platform('sensor', DOMAIN, {}, config)
-            hass.helpers.discovery.load_platform('light', DOMAIN, {}, config)
-            hass.helpers.discovery.load_platform('cover', DOMAIN, {}, config)
-            hass.helpers.discovery.load_platform('scene', DOMAIN, {}, config)
-            hass.helpers.discovery.load_platform('switch', DOMAIN, {}, config)
+            hub = ComelitHub(
+                hub_client,
+                hub_serial,
+                hub_host,
+                mqtt_port,
+                mqtt_user,
+                mqtt_password,
+                hub_user,
+                hub_password,
+                scan_interval,
+            )
+            hass.data[DOMAIN]["hub"] = hub
+            hass.helpers.discovery.load_platform("sensor", DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform("light", DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform("cover", DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform("scene", DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform("switch", DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform("climate", DOMAIN, {}, config)
             _LOGGER.info("Comelit Hub integration started")
 
     # Comelit Vedo
-    if 'vedo' in conf:
+    if "vedo" in conf:
         vedo_conf = conf["vedo"]
         if vedo_conf is not None:
             schema = VEDO_SCHEMA(vedo_conf)
@@ -73,9 +98,11 @@ def setup(hass, config):
             vedo_pwd = schema[CONF_PASSWORD]
             scan_interval = schema[CONF_SCAN_INTERVAL]
             vedo = ComelitVedo(vedo_host, vedo_port, vedo_pwd, scan_interval)
-            hass.data[DOMAIN]['vedo'] = vedo
+            hass.data[DOMAIN]["vedo"] = vedo
             # hass.helpers.discovery.load_platform('binary_sensor', DOMAIN, {}, config)
-            hass.helpers.discovery.load_platform('alarm_control_panel', DOMAIN, {}, config)
+            hass.helpers.discovery.load_platform(
+                "alarm_control_panel", DOMAIN, {}, config
+            )
             _LOGGER.info("Comelit Vedo integration started")
 
     return True

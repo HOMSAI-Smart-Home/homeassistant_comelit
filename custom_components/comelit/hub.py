@@ -177,6 +177,7 @@ class ComelitHub:
         self.covers = {}
         self.scenes = {}
         self.switches = {}
+        self.climates = {}
         self.client_name = client_name
         self.sequence_id = 1
         self.agent_id = 10
@@ -386,6 +387,7 @@ class ComelitHub:
             for item in elements:
 
                 id = item[HubFields.ID]
+                _LOGGER.debug(f'### {json.dumps(item)}')
 
                 if HubClasses.LOGICAL in id:
                     logical_elements = item[HubFields.DATA][HubFields.ELEMENTS]
@@ -413,6 +415,9 @@ class ComelitHub:
                 elif HubClasses.AUTOMATION in id:
                     description = item[HubFields.DESCRIPTION]
                     self.update_cover(id, description, item, HubFields.STATUS)
+                elif HubClasses.SCENARIO in id:
+                    description = item[HubFields.DESCRIPTION]
+                    self.update_scenario(id, description, item)
                 elif HubClasses.SCENARIO in id:
                     description = item[HubFields.DESCRIPTION]
                     self.update_scenario(id, description, item)
