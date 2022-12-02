@@ -32,9 +32,19 @@ class RequestType:
     AUTOMATION = 1
     COVER = 1
     SCENARIO = 1
+    CLIMATE = 1
     ANNOUNCE = 13
     LOGIN = 5
     PARAMETERS = 8
+
+
+class RequestAction:
+    SET = 0
+    CLIMATE_MODE = 1
+    CLIMATE_SET_POINT = 2
+    SWITCH_SEASON = 4
+    SWITCH_CLIMATE_MODE = 13
+
 
 
 class HubFields:
@@ -128,6 +138,13 @@ class CommandHub:
         except Exception as e:
             _LOGGER.exception("Error closing %s", e)
 
+    def set_mode(self, req_type, act_type, id, act_params):
+        try:
+            req = {"req_type": req_type, "req_sub_type": 3, "obj_id": id, "act_type": act_type, "act_params": act_params}
+            self._hub.publish(req)
+        except Exception as e:
+            _LOGGER.exception("Error closing %s", e)
+
     def light_on(self, id, brightness=None):
         self.on(RequestType.LIGHT, id, brightness)
 
@@ -138,12 +155,6 @@ class CommandHub:
         self.on(RequestType.AUTOMATION, id)
 
     def switch_off(self, id):
-        self.off(RequestType.AUTOMATION, id)
-
-    def climate_on(self, id):
-        self.on(RequestType.AUTOMATION, id)
-
-    def climate_off(self, id):
         self.off(RequestType.AUTOMATION, id)
 
     def cover_up(self, id):
@@ -159,6 +170,24 @@ class CommandHub:
 
     def cover_down(self, id):
         self.off(RequestType.COVER, id)
+
+    def climate_on_auto(self, id):
+        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [1])
+
+    def climate_on_manual(self, id):
+        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [0])
+
+    def climate_off(self, id):
+        self.set_mode(RequestType.CLIMATE, RequestAction.SET, id, [4])
+
+    def climate_set_temperature(self, id, temperature):
+        self.set_mode(RequestType.CLIMATE, RequestAction.CLIMATE_SET_POINT, id, [temperature])
+
+    def climate_set_summer(self, id):
+        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_SEASON, id, [0])
+
+    def climate_set_winter(self, id):
+        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_SEASON, id, [1])
 
 
 # Manage scenario
