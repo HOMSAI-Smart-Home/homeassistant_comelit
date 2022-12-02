@@ -13,6 +13,7 @@ from .sensor import PowerSensor, TemperatureSensor, HumiditySensor
 from .light import ComelitLight
 from .cover import ComelitCover
 from .switch import ComelitSwitch
+from .climate import ComelitClimate
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ class HubClasses:
     SCENARIO = 'DOM#LD'
     COVER = 'DOM#BL'
     SCENARIO = 'GEN#SC'
+    CLIMATE = 'DOM#CL'
     OTHER = 'DOM#LD'
 
 
@@ -136,6 +138,12 @@ class CommandHub:
         self.on(RequestType.AUTOMATION, id)
 
     def switch_off(self, id):
+        self.off(RequestType.AUTOMATION, id)
+
+    def climate_on(self, id):
+        self.on(RequestType.AUTOMATION, id)
+
+    def climate_off(self, id):
         self.off(RequestType.AUTOMATION, id)
 
     def cover_up(self, id):
@@ -363,6 +371,27 @@ class ComelitHub:
         except Exception as e:
             _LOGGER.exception("Error updating the scene %s", e)
 
+    def update_climate(self, id, description, data):
+        try:
+            _LOGGER.debug("update_climate: %s has data %s", description, data)
+
+            if data["status"] == "1":
+               state = STATE_ON
+            else:
+                state = STATE_OFF
+
+            light = ComelitClimate(id, description, state, brightness, CommandHub(self))
+            # if id not in self.lights:  # Add the new sensor
+            #     if hasattr(self, 'light_add_entities'):
+            #         self.light_add_entities([light])
+            #         self.lights[id] = light
+            #         _LOGGER.info("added the light %s %s", description, light.entity_name)
+            # else:
+            #     _LOGGER.debug("updating the light %s %s", description, light.entity_name)
+            #     self.lights[id].update_state(state)
+        except Exception as e:
+            _LOGGER.exception("Error updating climate %s", e)
+
     def update_switch(self, id, description, data):
         try:
             switch = ComelitSwitch(id, description, None, CommandHub(self))
@@ -403,7 +432,7 @@ class ComelitHub:
                 except Exception:
                     item = item
 
-                if HubClasses.POWER_CONSUMPTION in id or HubClasses.FTV in id or HubClasses.TEMPERATURE in id:  # Sensor
+                if HubClasses.POWER_CONSUMPTION in id or HubClasses.FTV in id:
                     description = item[HubFields.DESCRIPTION]
                     self.update_sensor(id, description, item)
                 elif HubClasses.LIGHT in id:
@@ -418,9 +447,9 @@ class ComelitHub:
                 elif HubClasses.SCENARIO in id:
                     description = item[HubFields.DESCRIPTION]
                     self.update_scenario(id, description, item)
-                elif HubClasses.SCENARIO in id:
+                elif HubClasses.CLIMATE in id:
                     description = item[HubFields.DESCRIPTION]
-                    self.update_scenario(id, description, item)
+                    self.update_climate(id, description, item)
                 elif HubClasses.OTHER in id:
                     description = item[HubFields.DESCRIPTION]
                     self.update_switch(id, description, item)
