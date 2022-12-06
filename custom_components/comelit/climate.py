@@ -7,6 +7,7 @@ from homeassistant.components.climate import (
     HVACMode,
     ClimateEntityFeature,
     PRESET_HOME,
+    HVACAction,
 )
 from homeassistant.const import STATE_ON, ATTR_TEMPERATURE, TEMP_CELSIUS
 from .const import (
@@ -14,11 +15,10 @@ from .const import (
     CONST_MODE_COOL,
     CONST_MODE_HEAT,
     CONST_MODE_OFF,
-    CONST_MODE_SMART_SCHEDULE,
     DOMAIN,
     HA_TO_HVAC_MODE_MAP,
+    HVAC_ACTION_TO_HA_HVAC_ACTION,
     SUPPORT_PRESET,
-    TO_HA_HVAC_MODE_MAP,
 )
 from .comelit_device import ComelitDevice
 
@@ -46,7 +46,8 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         self._state = state
         self._current_temperature = current_temperature
         self._target_temperature = target_temperature
-        self._hvac_mode = CONST_MODE_HEAT
+        self._hvac_mode = CONST_MODE_OFF
+        self._hvac_action = HVACAction.OFF
         self._temperature_unit = temperature_unit
         self._supported_features = (
             ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TARGET_TEMPERATURE
@@ -74,14 +75,18 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
 
     @property
     def hvac_mode(self):
-        return TO_HA_HVAC_MODE_MAP.get(self._current_tado_hvac_mode, HVACMode.OFF)
+        return HVAC_ACTION_TO_HA_HVAC_ACTION.get(self._hvac_mode, HVACMode.OFF)
 
     @property
     def hvac_modes(self):
         hvac_modes = []
-        for _, value in HA_TO_HVAC_MODE_MAP.items():
-            hvac_modes.append(value)
+        for key, _ in HA_TO_HVAC_MODE_MAP.items():
+            hvac_modes.append(key)
         return hvac_modes
+
+    @property
+    def hvac_action(self) -> HVACAction:
+        return HVAC_ACTION_TO_HA_HVAC_ACTION.get(self._hvac_action, HVACAction.OFF)
 
     @property
     def preset_mode(self):
@@ -97,11 +102,14 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         current_temperature,
         target_temperature,
     ):
-        self._state = state
         self._current_temperature = current_temperature
         self._target_temperature = target_temperature
+        self._state = state
 
-    def set_hvac_mode(self, hvac_mode) -> None:
+        # TODO: check if update than do that
+        self.async_schedule_update_ha_state()
+
+    def set_hvac_mode(self, hvac_mode):
         self._control_hvac(hvac_mode=HA_TO_HVAC_MODE_MAP[hvac_mode])
 
         if self._hvac_mode == CONST_MODE_AUTO:
@@ -113,18 +121,14 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         elif self._hvac_mode == CONST_MODE_OFF:
             self._climate.climate_off(self._id)
 
-    def set_temperature(self, **kwargs) -> None:
+    def set_temperature(self, **kwargs):
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
 
-        if self._hvac_mode not in (
-            CONST_MODE_AUTO,
-            CONST_MODE_SMART_SCHEDULE,
-        ):
-            self._control_hvac(target_temp=temperature)
-            return
+        if self._hvac_mode in (CONST_MODE_AUTO):
+            self._climate.climate_on_manual(self._id)
 
-        # self._climate.climate_on_manual(self._id) # idk if this is necessary, must be tested
+        self._control_hvac(target_temp=temperature)
 
     def _control_hvac(self, hvac_mode=None, target_temp=None):
         if hvac_mode:
@@ -137,8 +141,8 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
             _LOGGER.debug("[%s] Switching to OFF", self.name)
             return
 
-        if self._hvac_mode == CONST_MODE_SMART_SCHEDULE:
-            _LOGGER.debug("[%s] Switching to SMART_SCHEDULE", self.name)
+        if self._hvac_mode == CONST_MODE_AUTO:
+            _LOGGER.debug("[%s] Switching to auto", self.name)
             return
 
         if target_temp:

@@ -11,7 +11,7 @@ class ComelitDevice(Entity):
         self._id = id
         self._state = None
         if device_type is None:
-            self._name = name
+            self._name = self.entity_name = name
             self._unique_id = "{0}_{1}".format(DOMAIN, id)
         else:
             self._name = self.entity_name = "{0}_{1}".format(device_type, name.lower().replace(' ', '-'))

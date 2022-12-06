@@ -215,7 +215,7 @@ class CommandHub:
             RequestType.CLIMATE,
             RequestAction.CLIMATE_SET_POINT,
             id,
-            [temperature],
+            [int(temperature * 10)],
         )
 
     def climate_set_summer(self, id):
@@ -476,8 +476,6 @@ class ComelitHub:
 
     def update_climate(self, id, description, data):
         try:
-            _LOGGER.debug("update_climate: %s has data %s", description, data)
-
             if data[HubFields.STATUS] == "1":
                 state = STATE_ON
             else:
