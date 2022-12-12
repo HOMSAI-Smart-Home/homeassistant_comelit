@@ -1,4 +1,4 @@
-from homeassistant.components.climate import HVACMode, PRESET_HOME, HVACAction
+from homeassistant.components.climate import HVACMode, PRESET_HOME
 
 DOMAIN = "comelit"
 HUB_DOMAIN = "comelit.hub"
@@ -9,31 +9,11 @@ CONF_SERIAL = "serial"
 CONF_CLIENT = "client"
 COVER_CLOSING_TIME = 30  # TODO config
 
-# Base modes
-CONST_MODE_OFF = "OFF"
-CONST_MODE_AUTO = "AUTO"
-CONST_MODE_COOL = "COOL"
-CONST_MODE_HEAT = "HEAT"
-
-CONST_HVAC_HEAT = "HEAT"
-CONST_HVAC_COOL = "COOL"
-CONST_HVAC_OFF = "OFF"
-CONST_HVAC_IDLE = "IDLE"
-
-HVAC_ACTION_TO_HA_HVAC_ACTION = {
-    CONST_HVAC_HEAT: HVACAction.HEATING,
-    CONST_HVAC_COOL: HVACAction.COOLING,
-    CONST_HVAC_OFF: HVACAction.OFF,
-    CONST_HVAC_IDLE: HVACAction.IDLE,
-}
-
-HA_TO_HVAC_MODE_MAP = {
-    HVACMode.OFF: CONST_MODE_OFF,
-    HVACMode.AUTO: CONST_MODE_AUTO,
-    HVACMode.HEAT: CONST_MODE_HEAT,
-    HVACMode.COOL: CONST_MODE_COOL,
-}
-
-TO_HA_HVAC_MODE_MAP = {value: key for key, value in HA_TO_HVAC_MODE_MAP.items()}
+HVAC_MODES = [
+    HVACMode.OFF,
+    HVACMode.AUTO,
+    HVACMode.HEAT,
+    HVACMode.COOL,
+]
 
 SUPPORT_PRESET = [PRESET_HOME]

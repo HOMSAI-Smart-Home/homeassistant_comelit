@@ -9,15 +9,10 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     HVACAction,
 )
-from homeassistant.const import STATE_ON, ATTR_TEMPERATURE, TEMP_CELSIUS
+from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 from .const import (
-    CONST_MODE_AUTO,
-    CONST_MODE_COOL,
-    CONST_MODE_HEAT,
-    CONST_MODE_OFF,
     DOMAIN,
-    HA_TO_HVAC_MODE_MAP,
-    HVAC_ACTION_TO_HA_HVAC_ACTION,
+    HVAC_MODES,
     SUPPORT_PRESET,
 )
 from .comelit_device import ComelitDevice
@@ -35,23 +30,42 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         self,
         id,
         description,
-        state,
+        HVAC_action: HVACAction,
+        HVAC_mode: HVACMode,
         current_temperature,
         target_temperature,
+        cool_Limit_Max,
+        cool_Limit_Min,
+        heat_Limit_Max,
+        heat_Limit_Min,
         climate_hub,
         temperature_unit=TEMP_CELSIUS,
     ):
+        _LOGGER.debug(
+            "###[%s]\ncurrent_temperature: %s\ntarget_temperature: %s\ncool_Limit_Max: %s\ncool_Limit_Min: %s\nheat_Limit_Max: %s\nheat_Limit_Min: %s\nHVAC_mode: %s\nHVAC_action: %s",
+            id,
+            current_temperature,
+            target_temperature,
+            cool_Limit_Max,
+            cool_Limit_Min,
+            heat_Limit_Max,
+            heat_Limit_Min,
+            HVAC_mode,
+            HVAC_action,
+        )
+
         ComelitDevice.__init__(self, id, None, description)
         self._climate = climate_hub
-        self._state = state
         self._current_temperature = current_temperature
         self._target_temperature = target_temperature
-        self._hvac_mode = CONST_MODE_OFF
-        self._hvac_action = HVACAction.OFF
+        self._cool_Limit_Max = cool_Limit_Max
+        self._cool_Limit_Min = cool_Limit_Min
+        self._heat_Limit_Max = heat_Limit_Max
+        self._heat_Limit_Min = heat_Limit_Min
+        self._hvac_mode = HVAC_mode
+        self._hvac_action = HVAC_action
         self._temperature_unit = temperature_unit
-        self._supported_features = (
-            ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TARGET_TEMPERATURE
-        )
+        self._supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def supported_features(self):
@@ -62,10 +76,6 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         return self._temperature_unit
 
     @property
-    def is_on(self):
-        return self._state == STATE_ON
-
-    @property
     def current_temperature(self):
         return self._current_temperature
 
@@ -74,19 +84,29 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         return self._target_temperature
 
     @property
-    def hvac_mode(self):
-        return HVAC_ACTION_TO_HA_HVAC_ACTION.get(self._hvac_mode, HVACMode.OFF)
+    def min_temp(self):
+        if self._hvac_mode == HVACMode.cool:
+            return self._cool_Limit_Min
+        return self.heat_Limit_Min
+
+    @property
+    def max_temp(self):
+        """Return the maximum temperature."""
+        if self._hvac_mode == HVACMode.cool:
+            return self.cool_Limit_Max
+        return self.heat_Limit_Max
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        return self._hvac_mode
 
     @property
     def hvac_modes(self):
-        hvac_modes = []
-        for key, _ in HA_TO_HVAC_MODE_MAP.items():
-            hvac_modes.append(key)
-        return hvac_modes
+        return HVAC_MODES
 
     @property
-    def hvac_action(self) -> HVACAction:
-        return HVAC_ACTION_TO_HA_HVAC_ACTION.get(self._hvac_action, HVACAction.OFF)
+    def hvac_action(self):
+        return self._hvac_action
 
     @property
     def preset_mode(self):
@@ -96,61 +116,66 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
     def preset_modes(self):
         return SUPPORT_PRESET
 
-    def update(
+    def update_state(
         self,
         state,
+        hvac_action: HVACAction,
+        hvac_mode: HVACMode,
         current_temperature,
         target_temperature,
     ):
+        super().update_state(state)
+        if (
+            self._current_temperature != current_temperature
+            or self._target_temperature != target_temperature
+            or self._hvac_mode != hvac_mode
+            or self._hvac_action != hvac_action
+        ):
+            _LOGGER.debug(
+                "[%s] Switching to %s [%s] with %s °C [%s °C]",
+                self.name,
+                hvac_mode,
+                hvac_action,
+                current_temperature,
+                target_temperature,
+            )
+
         self._current_temperature = current_temperature
         self._target_temperature = target_temperature
-        self._state = state
+        self._hvac_mode = hvac_mode
+        self._hvac_action = hvac_action
 
         # TODO: check if update than do that
+
         self.async_schedule_update_ha_state()
 
-    def set_hvac_mode(self, hvac_mode):
-        self._control_hvac(hvac_mode=HA_TO_HVAC_MODE_MAP[hvac_mode])
-
-        if self._hvac_mode == CONST_MODE_AUTO:
+    def set_hvac_mode(self, hvac_mode: HVACMode):
+        if hvac_mode == HVACMode.AUTO:
             self._climate.climate_on_auto(self._id)
-        elif self._hvac_mode == CONST_MODE_HEAT:
+        elif hvac_mode == HVACMode.HEAT:
             self._climate.climate_set_winter(self._id)
-        elif self._hvac_mode == CONST_MODE_COOL:
+        elif hvac_mode == HVACMode.COOL:
             self._climate.climate_set_summer(self._id)
-        elif self._hvac_mode == CONST_MODE_OFF:
+        elif hvac_mode == HVACMode.OFF:
             self._climate.climate_off(self._id)
+
+        _LOGGER.debug(
+            "[%s] Switching to %s",
+            self.name,
+            hvac_mode,
+        )
 
     def set_temperature(self, **kwargs):
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
 
-        if self._hvac_mode in (CONST_MODE_AUTO):
+        if self._hvac_mode in (HVACMode.AUTO):
             self._climate.climate_on_manual(self._id)
 
-        self._control_hvac(target_temp=temperature)
-
-    def _control_hvac(self, hvac_mode=None, target_temp=None):
-        if hvac_mode:
-            self._hvac_mode = hvac_mode
-
-        if target_temp:
-            self._target_temperature = target_temp
-
-        if self._hvac_mode == CONST_MODE_OFF:
-            _LOGGER.debug("[%s] Switching to OFF", self.name)
-            return
-
-        if self._hvac_mode == CONST_MODE_AUTO:
-            _LOGGER.debug("[%s] Switching to auto", self.name)
-            return
-
-        if target_temp:
-            self._climate.climate_set_temperature(self._id, target_temp)
+        self._climate.climate_set_temperature(self._id, temperature)
 
         _LOGGER.debug(
-            "[%s] Switching to %s with temperature %s °C",
+            "[%s] Switching to %s °C",
             self.name,
-            self._hvac_mode,
             self._target_temperature,
         )

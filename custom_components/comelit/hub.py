@@ -15,6 +15,8 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 
+from homeassistant.components.climate import HVACAction, HVACMode
+
 from .scene import ComelitScenario
 from .sensor import PowerSensor, TemperatureSensor, HumiditySensor
 from .light import ComelitLight
@@ -68,6 +70,13 @@ class HubFields:
     DATA = "data"
     PARAMETER_NAME = "param_name"
     PARAMETER_VALUE = "param_value"
+    POWERST = "powerst"
+    AUTO_MAN = "auto_man"
+    SUMMER_WINTER = "est_inv"
+    COOL_LIMIT_MAX = "coolLimitMax"
+    COOL_LIMIT_MIX = "coolLimitMin"
+    HEAT_LIMIT_MAX = "heatLimitMax"
+    HEAT_LIMIT_MIN = "heatLimitMin"
 
 
 class HubClasses:
@@ -205,7 +214,9 @@ class CommandHub:
         self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [1])
 
     def climate_on_manual(self, id):
-        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [0])
+        self.set_mode(
+            RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [0]
+        )  # i think it's 2
 
     def climate_off(self, id):
         self.set_mode(RequestType.CLIMATE, RequestAction.SET, id, [4])
@@ -475,21 +486,64 @@ class ComelitHub:
             _LOGGER.exception("Error updating the scene %s", e)
 
     def update_climate(self, id, description, data):
-        try:
-            if data[HubFields.STATUS] == "1":
-                state = STATE_ON
-            else:
-                state = STATE_OFF
+        def _get_HVAC_mode(powerst, auto_man, summer_winter):
+            if powerst != "1":
+                return HVACMode.OFF
+            if auto_man == "1":
+                return HVACMode.AUTO
+            if summer_winter == "1":
+                return HVACMode.COOL
+            return HVACMode.HEAT
 
+        def _get_HVAC_action(status, summer_winter):
+            if status != "1":
+                return HVACAction.OFF
+            if summer_winter == "1":
+                return HVACMode.COOLING
+            return HVACMode.HEATING
+
+        try:
             current_temperature = data[HubFields.TEMPERATURE]
             target_temperature = data[HubFields.TARGET_TEMPERATURE]
+            cool_Limit_Max = data[HubFields.COOL_LIMIT_MAX]
+            cool_Limit_Min = data[HubFields.COOL_LIMIT_MIX]
+            heat_Limit_Max = data[HubFields.HEAT_LIMIT_MAX]
+            heat_Limit_Min = data[HubFields.HEAT_LIMIT_MIN]
+            auto_man = data[HubFields.AUTO_MAN]
+            summer_winter = data[HubFields.SUMMER_WINTER]
+            powerst = data[HubFields.POWERST]
+            status = data[HubFields.STATUS]
+
+            HVAC_mode = _get_HVAC_mode(powerst, auto_man, summer_winter)
+            HVAC_action = _get_HVAC_action(status, summer_winter)
+
+            _LOGGER.debug(
+                "###\ncurrent_temperature: %s\ntarget_temperature: %s\ncool_Limit_Max: %s\ncool_Limit_Min: %s\nheat_Limit_Max: %s\nheat_Limit_Min: %s\nauto_man: %s\nsummer_winter: %s\npowerst: %s\nstatus: %s\nHVAC_mode: %s\nHVAC_action: %s",
+                current_temperature,
+                target_temperature,
+                cool_Limit_Max,
+                cool_Limit_Min,
+                heat_Limit_Max,
+                heat_Limit_Min,
+                auto_man,
+                summer_winter,
+                powerst,
+                status,
+                HVAC_mode,
+                HVAC_action,
+            )
 
             climate = ComelitClimate(
                 id,
                 description,
-                state,
+                HVAC_action,
+                HVAC_mode,
                 float(current_temperature) / 10,
                 float(target_temperature) / 10,
+                float(cool_Limit_Max) / 10,
+                float(cool_Limit_Min) / 10,
+                float(heat_Limit_Max) / 10,
+                float(heat_Limit_Min) / 10,
                 CommandHub(self),
             )
 
@@ -497,19 +551,13 @@ class ComelitHub:
                 if hasattr(self, "climate_add_entities"):
                     self.climate_add_entities([climate])
                     self.climates[id] = climate
-                    _LOGGER.info(
-                        "added the climate %s %s",
-                        description,
-                        climate.entity_name,
-                    )
+                    _LOGGER.info("added the climate %s %s", description, id)
             else:
-                _LOGGER.debug(
-                    "updating the climate %s %s",
-                    description,
-                    climate.entity_name,
-                )
-                self.climates[id].update(
-                    state,
+                _LOGGER.debug("updating the climate %s %s", description, id)
+                self.climates[id].update_state(
+                    HVAC_mode,
+                    HVAC_action,
+                    HVAC_mode,
                     float(current_temperature) / 10,
                     float(target_temperature) / 10,
                 )
@@ -540,7 +588,7 @@ class ComelitHub:
             for item in elements:
 
                 id = item[HubFields.ID]
-                _LOGGER.debug(f"### {json.dumps(item)}")
+                _LOGGER.debug("@@@ %s", item)
 
                 if HubClasses.LOGICAL in id:
                     logical_elements = item[HubFields.DATA][HubFields.ELEMENTS]
