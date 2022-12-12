@@ -2,8 +2,6 @@ from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
 
-import logging
-_LOGGER = logging.getLogger(__name__)
 
 class ComelitDevice(Entity):
     def __init__(self, id, device_type, name):
@@ -16,10 +14,10 @@ class ComelitDevice(Entity):
             self._name = self.entity_name = name
             self._unique_id = "{0}_{1}".format(DOMAIN, id)
         else:
-            self._name = self.entity_name = "{0}_{1}".format(device_type, name.lower().replace(' ', '-'))
+            self._name = self.entity_name = "{0}_{1}".format(
+                device_type, name.lower().replace(" ", "-")
+            )
             self._unique_id = "{0}_{1}_{2}".format(DOMAIN, device_type, id)
-
-        _LOGGER.debug("!!! '%s' '%s'", self._id, self._unique_id)
 
     @property
     def name(self):

@@ -45,6 +45,7 @@ class RequestType:
     ANNOUNCE = 13
     LOGIN = 5
     PARAMETERS = 8
+    COMMAND_EXECUTED = 1
 
 
 class RequestAction:
@@ -214,12 +215,13 @@ class CommandHub:
         self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [1])
 
     def climate_on_manual(self, id):
-        self.set_mode(
-            RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [0]
-        )  # i think it's 2
+        self.set_mode(RequestType.CLIMATE, RequestAction.SWITCH_CLIMATE_MODE, id, [2])
 
-    def climate_off(self, id):
-        self.set_mode(RequestType.CLIMATE, RequestAction.SET, id, [4])
+    def climate_off(
+        self,
+        id,
+    ):
+        self.off(RequestType.CLIMATE, id)
 
     def climate_set_temperature(self, id, temperature):
         self.set_mode(
@@ -320,10 +322,15 @@ class ComelitHub:
                 RequestType.LOGIN: self.token,
                 RequestType.STATUS: self.status,
                 RequestType.PARAMETERS: self.parse_parameters,
+                RequestType.COMMAND_EXECUTED: lambda _: _,
             }
-            options[req_type](payload)
+            fun = options.get(req_type)
+            if fun != None:
+                fun(payload)
+            else:
+                _LOGGER.debug("Wrong req_type: %s %s", req_type, payload)
         except Exception as e:
-            _LOGGER.error(e)
+            _LOGGER.error("%s", payload)
 
     def manage_announce(self, payload):
         self.agent_id = payload["out_data"][0]["agent_id"]
@@ -492,45 +499,41 @@ class ComelitHub:
             if auto_man == "1":
                 return HVACMode.AUTO
             if summer_winter == "1":
-                return HVACMode.COOL
-            return HVACMode.HEAT
+                return HVACMode.HEAT
+            return HVACMode.COOL
 
-        def _get_HVAC_action(status, summer_winter):
-            if status != "1":
+        def _get_HVAC_action(
+            HVAC_mode,
+            current_temperature,
+            target_temperature,
+            summer_winter,
+        ):
+            if HVAC_mode == HVACMode.OFF:
                 return HVACAction.OFF
-            if summer_winter == "1":
-                return HVACMode.COOLING
-            return HVACMode.HEATING
+            if summer_winter == "1" and target_temperature > current_temperature:
+                return HVACAction.HEATING
+            if summer_winter != "1" and target_temperature < current_temperature:
+                return HVACAction.COOLING
+            return HVACAction.OFF
 
         try:
             current_temperature = data[HubFields.TEMPERATURE]
             target_temperature = data[HubFields.TARGET_TEMPERATURE]
-            cool_Limit_Max = data[HubFields.COOL_LIMIT_MAX]
-            cool_Limit_Min = data[HubFields.COOL_LIMIT_MIX]
-            heat_Limit_Max = data[HubFields.HEAT_LIMIT_MAX]
-            heat_Limit_Min = data[HubFields.HEAT_LIMIT_MIN]
+            # cool_limit_max = data[HubFields.COOL_LIMIT_MAX]
+            # cool_limit_min = data[HubFields.COOL_LIMIT_MIX]
+            # heat_limit_max = data[HubFields.HEAT_LIMIT_MAX]
+            # heat_limit_min = data[HubFields.HEAT_LIMIT_MIN]
             auto_man = data[HubFields.AUTO_MAN]
             summer_winter = data[HubFields.SUMMER_WINTER]
             powerst = data[HubFields.POWERST]
             status = data[HubFields.STATUS]
 
             HVAC_mode = _get_HVAC_mode(powerst, auto_man, summer_winter)
-            HVAC_action = _get_HVAC_action(status, summer_winter)
-
-            _LOGGER.debug(
-                "###\ncurrent_temperature: %s\ntarget_temperature: %s\ncool_Limit_Max: %s\ncool_Limit_Min: %s\nheat_Limit_Max: %s\nheat_Limit_Min: %s\nauto_man: %s\nsummer_winter: %s\npowerst: %s\nstatus: %s\nHVAC_mode: %s\nHVAC_action: %s",
+            HVAC_action = _get_HVAC_action(
+                HVAC_mode,
                 current_temperature,
                 target_temperature,
-                cool_Limit_Max,
-                cool_Limit_Min,
-                heat_Limit_Max,
-                heat_Limit_Min,
-                auto_man,
                 summer_winter,
-                powerst,
-                status,
-                HVAC_mode,
-                HVAC_action,
             )
 
             climate = ComelitClimate(
@@ -540,14 +543,30 @@ class ComelitHub:
                 HVAC_mode,
                 float(current_temperature) / 10,
                 float(target_temperature) / 10,
-                float(cool_Limit_Max) / 10,
-                float(cool_Limit_Min) / 10,
-                float(heat_Limit_Max) / 10,
-                float(heat_Limit_Min) / 10,
+                # float(cool_limit_max) / 10,
+                # float(cool_limit_min) / 10,
+                # float(heat_limit_max) / 10,
+                # float(heat_limit_min) / 10,
                 CommandHub(self),
             )
 
             if id not in self.climates:  # Add the new climate
+                # _LOGGER.debug(
+                #     "###[%s]\ncurrent_temperature: %s\ntarget_temperature: %s\ncool_Limit_Max: %s\ncool_Limit_Min: %s\nheat_Limit_Max: %s\nheat_Limit_Min: %s\nauto_man: %s\nsummer_winter: %s\npowerst: %s\nstatus: %s\nHVAC_mode: %s\nHVAC_action: %s",
+                #     id,
+                #     current_temperature,
+                #     target_temperature,
+                #     cool_limit_max,
+                #     cool_limit_min,
+                #     heat_limit_max,
+                #     heat_limit_min,
+                #     auto_man,
+                #     summer_winter,
+                #     powerst,
+                #     status,
+                #     HVAC_mode,
+                #     HVAC_action,
+                # )
                 if hasattr(self, "climate_add_entities"):
                     self.climate_add_entities([climate])
                     self.climates[id] = climate
@@ -588,7 +607,6 @@ class ComelitHub:
             for item in elements:
 
                 id = item[HubFields.ID]
-                _LOGGER.debug("@@@ %s", item)
 
                 if HubClasses.LOGICAL in id:
                     logical_elements = item[HubFields.DATA][HubFields.ELEMENTS]

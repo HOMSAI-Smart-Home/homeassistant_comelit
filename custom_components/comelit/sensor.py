@@ -1,7 +1,12 @@
 """Platform for sensor integration."""
 import logging
 from homeassistant.const import (
-    TEMP_CELSIUS, POWER_WATT, DEVICE_CLASS_HUMIDITY, DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_POWER)
+    TEMP_CELSIUS,
+    POWER_WATT,
+    DEVICE_CLASS_HUMIDITY,
+    DEVICE_CLASS_TEMPERATURE,
+    DEVICE_CLASS_POWER,
+)
 
 from .const import DOMAIN
 from .comelit_device import ComelitDevice
@@ -10,13 +15,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    hass.data[DOMAIN]['hub'].sensor_add_entities = add_entities
+    hass.data[DOMAIN]["hub"].sensor_add_entities = add_entities
     _LOGGER.info("Comelit Sensor Integration started")
 
 
 class ComelitSensor(ComelitDevice):
-
-    def __init__(self, id, description, state, type, icon, unit_of_measurement, device_class):
+    def __init__(
+        self, id, description, state, type, icon, unit_of_measurement, device_class
+    ):
         ComelitDevice.__init__(self, id, type, description)
         self._type = type
         self._icon = icon
@@ -55,7 +61,9 @@ class PowerSensor(ComelitSensor):
         else:
             type = "power_cons"
             icon = "mdi:power-plug"
-        ComelitSensor.__init__(self, id, description, value, type, icon, POWER_WATT, DEVICE_CLASS_POWER)
+        ComelitSensor.__init__(
+            self, id, description, value, type, icon, POWER_WATT, DEVICE_CLASS_POWER
+        )
 
 
 class TemperatureSensor(ComelitSensor):
@@ -63,12 +71,28 @@ class TemperatureSensor(ComelitSensor):
 
     def __init__(self, id, description, value):
         """Initialize the sensor."""
-        ComelitSensor.__init__(self, id, description, value, "temperature", "mdi:home-thermometer", TEMP_CELSIUS, DEVICE_CLASS_TEMPERATURE)
+        ComelitSensor.__init__(
+            self,
+            id,
+            description,
+            value,
+            "temperature",
+            "mdi:home-thermometer",
+            TEMP_CELSIUS,
+            DEVICE_CLASS_TEMPERATURE,
+        )
 
 
 class HumiditySensor(ComelitSensor):
     def __init__(self, id, description, value):
         """Initialize the sensor."""
-        ComelitSensor.__init__(self, id, description, value, "humidity", "mdi:water-percent", "%", DEVICE_CLASS_HUMIDITY)
-
-
+        ComelitSensor.__init__(
+            self,
+            id,
+            description,
+            value,
+            "humidity",
+            "mdi:water-percent",
+            "%",
+            DEVICE_CLASS_HUMIDITY,
+        )
