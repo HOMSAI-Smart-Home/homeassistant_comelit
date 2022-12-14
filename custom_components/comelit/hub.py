@@ -519,10 +519,10 @@ class ComelitHub:
         try:
             current_temperature = data[HubFields.TEMPERATURE]
             target_temperature = data[HubFields.TARGET_TEMPERATURE]
-            # cool_limit_max = data[HubFields.COOL_LIMIT_MAX]
-            # cool_limit_min = data[HubFields.COOL_LIMIT_MIX]
-            # heat_limit_max = data[HubFields.HEAT_LIMIT_MAX]
-            # heat_limit_min = data[HubFields.HEAT_LIMIT_MIN]
+            cool_limit_max = data[HubFields.COOL_LIMIT_MAX]
+            cool_limit_min = data[HubFields.COOL_LIMIT_MIX]
+            heat_limit_max = data[HubFields.HEAT_LIMIT_MAX]
+            heat_limit_min = data[HubFields.HEAT_LIMIT_MIN]
             auto_man = data[HubFields.AUTO_MAN]
             summer_winter = data[HubFields.SUMMER_WINTER]
             powerst = data[HubFields.POWERST]
@@ -536,37 +536,21 @@ class ComelitHub:
                 summer_winter,
             )
 
-            climate = ComelitClimate(
-                id,
-                description,
-                HVAC_action,
-                HVAC_mode,
-                float(current_temperature) / 10,
-                float(target_temperature) / 10,
-                # float(cool_limit_max) / 10,
-                # float(cool_limit_min) / 10,
-                # float(heat_limit_max) / 10,
-                # float(heat_limit_min) / 10,
-                CommandHub(self),
-            )
-
             if id not in self.climates:  # Add the new climate
-                # _LOGGER.debug(
-                #     "###[%s]\ncurrent_temperature: %s\ntarget_temperature: %s\ncool_Limit_Max: %s\ncool_Limit_Min: %s\nheat_Limit_Max: %s\nheat_Limit_Min: %s\nauto_man: %s\nsummer_winter: %s\npowerst: %s\nstatus: %s\nHVAC_mode: %s\nHVAC_action: %s",
-                #     id,
-                #     current_temperature,
-                #     target_temperature,
-                #     cool_limit_max,
-                #     cool_limit_min,
-                #     heat_limit_max,
-                #     heat_limit_min,
-                #     auto_man,
-                #     summer_winter,
-                #     powerst,
-                #     status,
-                #     HVAC_mode,
-                #     HVAC_action,
-                # )
+                climate = ComelitClimate(
+                    id,
+                    description,
+                    HVAC_action,
+                    HVAC_mode,
+                    float(current_temperature) / 10,
+                    float(target_temperature) / 10,
+                    float(cool_limit_max) / 10,
+                    float(cool_limit_min) / 10,
+                    float(heat_limit_max) / 10,
+                    float(heat_limit_min) / 10,
+                    CommandHub(self),
+                )
+
                 if hasattr(self, "climate_add_entities"):
                     self.climate_add_entities([climate])
                     self.climates[id] = climate

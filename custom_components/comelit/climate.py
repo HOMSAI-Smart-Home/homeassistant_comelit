@@ -34,10 +34,10 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         HVAC_mode: HVACMode,
         current_temperature,
         target_temperature,
-        # cool_limit_max,
-        # cool_limit_min,
-        # heat_limit_max,
-        # heat_limit_min,
+        cool_limit_max,
+        cool_limit_min,
+        heat_limit_max,
+        heat_limit_min,
         climate_hub,
         temperature_unit=TEMP_CELSIUS,
     ):
@@ -45,10 +45,10 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
         self._climate = climate_hub
         self._current_temperature = current_temperature
         self._target_temperature = target_temperature
-        # self._cool_limit_max = cool_limit_max
-        # self._cool_limit_min = cool_limit_min
-        # self._heat_limit_max = heat_limit_max
-        # self._heat_limit_min = heat_limit_min
+        self._cool_limit_max = cool_limit_max
+        self._cool_limit_min = cool_limit_min
+        self._heat_limit_max = heat_limit_max
+        self._heat_limit_min = heat_limit_min
         self._hvac_mode = HVAC_mode
         self._hvac_action = HVAC_action
         self._temperature_unit = temperature_unit
@@ -70,17 +70,17 @@ class ComelitClimate(ComelitDevice, ClimateEntity):
     def target_temperature(self):
         return self._target_temperature
 
-    # @property
-    # def min_temp(self):
-    #     if self._hvac_mode == HVACMode.cool:
-    #         return self._cool_limit_min
-    #     return self.heat_limit_min
+    @property
+    def min_temp(self):
+        if self._hvac_mode == HVACMode.COOL:
+            return self._cool_limit_min
+        return self._heat_limit_min
 
-    # @property
-    # def max_temp(self):
-    #     if self._hvac_mode == HVACMode.cool:
-    #         return self.cool_limit_max
-    #     return self.heat_limit_max
+    @property
+    def max_temp(self):
+        if self._hvac_mode == HVACMode.COOL:
+            return self._cool_limit_max
+        return self._heat_limit_max
 
     @property
     def hvac_mode(self) -> HVACMode:
